@@ -66,17 +66,29 @@
         });
 
         $template.find('input, textarea, select').each(function() {
-            $(this).val('');
-        });
+            if ($(this).is(':checkbox') || $(this).is(':radio')) {
+                var type         = ($(this).is(':checkbox')) ? 'checkbox' : 'radio';
+                var inputName    = $(this).attr('name');
+                var $inputHidden = $template.find('input[type="hidden"][name="' + inputName + '"]').first();
+                var count        = $template.find('input[type="' + type +'"][name="' + inputName + '"]').length;
 
-        $template.find('input[type="checkbox"], input[type="radio"]').each(function() {
-            var inputName = $(this).attr('name');
-            var $inputHidden = $template.find('input[type="hidden"][name="' + inputName + '"]').first();
-            if ($inputHidden) {
-                $(this).val(1);
-                $inputHidden.val(0);
+                if ($inputHidden && count === 1) {
+                    $(this).val(1);
+                    $inputHidden.val(0);
+                }
+
+                $(this).prop('checked', false);
+            } else if($(this).is('select')) {
+                $(this).find('option:selected').removeAttr("selected");
+            } else {
+                $(this).val(''); 
             }
         });
+
+        // remove "error/success" css class
+        var yiiActiveFormData = $('#' + widgetOptions.formId).yiiActiveForm('data');
+        $template.find('.' + yiiActiveFormData.settings.errorCssClass).removeClass(yiiActiveFormData.settings.errorCssClass);
+        $template.find('.' + yiiActiveFormData.settings.successCssClass).removeClass(yiiActiveFormData.settings.successCssClass);
 
         return $template;
     };
@@ -306,8 +318,34 @@
         });
     };
 
+    var _restoreKrajeeDepdrop = function($elem) {
+        var configDepdrop = $.extend(true, {}, eval($elem.attr('data-krajee-depdrop')));
+        var inputID = $elem.attr('id');
+        var matchID = inputID.match(regexID);
+
+        if (matchID && matchID.length === 4) {
+            for (index = 0; index < configDepdrop.depends.length; ++index) {
+                var match = configDepdrop.depends[index].match(regexID);
+                if (match && match.length === 4) {
+                    configDepdrop.depends[index] = match[1] + matchID[2] + match[3];
+                }
+            }
+        }
+
+        $elem.depdrop(configDepdrop);
+    };
+
     var _restoreSpecialJs = function(widgetOptions) {
         var widgetOptionsRoot = _getWidgetOptionsRoot(widgetOptions);
+
+        // "jquery.inputmask"
+        var $hasInputmask = $(widgetOptionsRoot.widgetItem).find('[data-plugin-inputmask]');
+        if ($hasInputmask.length > 0) {
+            $hasInputmask.each(function() {
+                $(this).inputmask('remove');
+                $(this).inputmask(eval($(this).attr('data-plugin-inputmask')));
+            });
+        }
 
         // "kartik-v/yii2-widget-datepicker"
         var $hasDatepicker = $(widgetOptionsRoot.widgetItem).find('[data-krajee-datepicker]');
@@ -390,31 +428,21 @@
         var $hasDepdrop = $(widgetOptionsRoot.widgetItem).find('[data-krajee-depdrop]');
         if ($hasDepdrop.length > 0) {
             $hasDepdrop.each(function() {
-                $(this).removeData().off();
-                $(this).unbind();
-                var configDepdrop = eval($(this).attr('data-krajee-depdrop'));
-                var inputID = $(this).attr('id');
-                var matchID = inputID.match(regex);
-                if (matchID && matchID.length === 4) {
-                    for (index = 0; index < configDepdrop.depends.length; ++index) {
-                        var match = configDepdrop.depends[index].match(regex);
-                        if (match && match.length === 4) {
-                            configDepdrop.depends[index] = match[1] + matchID[2] + match[3];
-                        }
-                    }
+                if ($(this).data('select2') === undefined) {
+                    $(this).removeData().off();
+                    $(this).unbind();
+                    _restoreKrajeeDepdrop($(this));
                 }
-                $(this).depdrop(configDepdrop);
             });
         }
 
-       // "kartik-v/yii2-widget-select2"
-   var $hasSelect2 = $(widgetOptionsRoot.widgetItem).find('[data-krajee-select2]');
-   if ($hasSelect2.length > 0) {
-      $hasSelect2.each(function() {
-          var id = $(this).attr('id');
-          var configSelect2 = eval($(this).attr('data-krajee-select2'));
+        // "kartik-v/yii2-widget-select2"
+        var $hasSelect2 = $(widgetOptionsRoot.widgetItem).find('[data-krajee-select2]');
+        if ($hasSelect2.length > 0) {
+            $hasSelect2.each(function() {
+                var id = $(this).attr('id');
+                var configSelect2 = eval($(this).attr('data-krajee-select2'));
 
-                // $(this).select2('destroy');
                 if ($(this).data('select2')) {
                     $(this).select2('destroy');
                 }
@@ -426,24 +454,23 @@
                     $(this).unbind();
                     _restoreKrajeeDepdrop($(this));
                 }
-                var s2LoadingFunc = typeof initSelect2Loading != 'undefined' ? initSelect2Loading : initS2Loading;
-                var s2OpenFunc = typeof initSelect2DropStyle != 'undefined' ? initSelect2Loading : initS2Loading;
-                $.when($('#' + id).select2(configSelect2)).done(s2LoadingFunc(id, '.select2-container--krajee'));
+
+                $.when($('#' + id).select2(configSelect2)).done(initSelect2Loading(id, '.select2-container--krajee'));
 
                 var kvClose = 'kv_close_' + id.replace(/\-/g, '_');
 
                 $('#' + id).on('select2:opening', function(ev) {
-                    s2OpenFunc(id, kvClose, ev);
+                    initSelect2DropStyle(id, kvClose, ev);
                 });
 
                 $('#' + id).on('select2:unselect', function() {
                     window[kvClose] = true;
                 });
 
-                if (configDepdrop) {
+               if (configDepdrop) {
                     var loadingText = (configDepdrop.loadingText) ? configDepdrop.loadingText : 'Loading ...';
                     initDepdropS2(id, loadingText);
-                }                
+                }
             });
         }
     };
