@@ -196,7 +196,9 @@
 
                     widgetsOptions = widgetsOptions.reverse();
                     for (var i = identifiers.length - 1; i >= 1; i--) {
-                        identifiers[i] = $elem.closest(widgetsOptions[i].widgetItem).index();
+                        if(typeof widgetsOptions[i] !== 'undefined'){
+                            identifiers[i] = $elem.closest(widgetsOptions[i].widgetItem).index();
+                        }
                     }
                 }
 
@@ -238,9 +240,7 @@
 
                     widgetsOptions = widgetsOptions.reverse();
                     for (var i = identifiers.length - 1; i >= 1; i--) {
-                        if(typeof widgetsOptions[i] !== 'undefined'){
-                            identifiers[i] = $elem.closest(widgetsOptions[i].widgetItem).index();
-                        }
+                        identifiers[i] = $elem.closest(widgetsOptions[i].widgetItem).index();
                     }
                 }
 
